@@ -2,9 +2,9 @@ Une IA d'une sonde de Von Neumann perdue  dans le dédale de secteurs de l'espac
 
 Fais en boucle {
 * Saut dans un secteur voisin
-* Si présence de deutérium minable dans le secteur C'est gagné, arrète le batch et on se réveille, la vraie mission reprend
-* 3) Réparer les dégats et refaire le stock de métal si possible en minant un astéroide
-* 4) Scanner les secteurs voisins 
+* Si présence de deutérium minable dans le secteur C'est gagné, arrète le batch et on se réveille, la vraie mission reprend!
+* Répare les dégats et refais le stock de métal si possible, en minant un astéroide.
+* Scanner les secteurs voisins 
 
 }
 
