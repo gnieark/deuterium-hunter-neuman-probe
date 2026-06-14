@@ -218,7 +218,11 @@ def value_mentions_resource(value: Any, resource: str) -> bool:
             if str(value.get(key, "")).lower() == resource:
                 amount = value.get("amount", value.get("quantity", value.get("ratio", 1)))
                 return value_mentions_resource(amount, resource)
-        return any(value_mentions_resource(item, resource) for item in value.values())
+        return any(
+            value_mentions_resource(item, resource)
+            for item in value.values()
+            if isinstance(item, (dict, list, str))
+        )
     return False
 
 
@@ -226,8 +230,10 @@ def asteroid_has_resource(asteroid: dict[str, Any], resource: str) -> bool:
     searchable_parts = [
         asteroid.get(resource),
         asteroid.get("resources"),
+        asteroid.get("resourceTypes"),
         asteroid.get("composition"),
         asteroid.get("resourceComposition"),
+        asteroid.get("resourceAmounts"),
         asteroid.get("materials"),
         asteroid.get("mineableResources"),
         asteroid.get("summary"),
@@ -236,11 +242,35 @@ def asteroid_has_resource(asteroid: dict[str, Any], resource: str) -> bool:
     return any(value_mentions_resource(part, resource) for part in searchable_parts)
 
 
+def iter_sector_asteroids(sector: dict[str, Any]) -> list[dict[str, Any]]:
+    """Retourne les asteroides visibles, y compris ceux imbriques dans un systeme."""
+
+    asteroids = []
+    seen_ids = set()
+    nested_target_fields = ("minableTargets", "mineableTargets", "bookmarkTargets")
+
+    def add_if_asteroid(obj: dict[str, Any]) -> None:
+        if obj.get("type") != "asteroid" or not obj.get("id"):
+            return
+        if obj["id"] in seen_ids:
+            return
+        seen_ids.add(obj["id"])
+        asteroids.append(obj)
+
+    for obj in sector.get("objects", []):
+        add_if_asteroid(obj)
+        for field in nested_target_fields:
+            for target in obj.get(field, []):
+                add_if_asteroid(target)
+
+    return asteroids
+
+
 def asteroids_with_resource(sector: dict[str, Any], resource: str) -> list[dict[str, Any]]:
     return [
-        obj
-        for obj in sector.get("objects", [])
-        if obj.get("type") == "asteroid" and obj.get("id") and asteroid_has_resource(obj, resource)
+        asteroid
+        for asteroid in iter_sector_asteroids(sector)
+        if asteroid_has_resource(asteroid, resource)
     ]
 
 
