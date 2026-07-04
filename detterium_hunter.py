@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Bot d'exemple pour l'API https://neumann-probe.net/.
+"""Example bot for the API https://neumann-probe.net/.
 
-Objectif: explorer les secteurs jusqu'a trouver un asteroide contenant du
-deuterium. Le script lit la clef d'API dans le fichier ".secret" du dossier.
+Objective: explore sectors until finding an asteroid containing deuterium.
+The script reads the API key from the ".secret" file in the folder.
 
-Le code privilegie la lisibilite et les messages explicites: il montre chaque
-decision, attend les taches asynchrones, puis repart explorer.
+The code prioritizes readability and explicit messages: it shows each decision,
+awaits asynchronous tasks, then resumes exploring.
 """
 
 from __future__ import annotations
@@ -30,8 +30,8 @@ MANNY_TRIP_CAPACITY_ECE = 0.05
 REPAIR_METALS_PER_PERCENT_ECE = 0.01
 POLL_SECONDS = 30
 
-# Grille hexagonale/cubique exposee par l'API: un voisin a deux coordonnees qui
-# changent de +/-1 et une coordonnee stable. Cela garde x+y+z pair.
+# Hexagonal/cubic grid exposed by API: a neighbor changes two coordinates
+# by +/-1 and keeps one stable. This keeps x+y+z even.
 NEIGHBOR_OFFSETS = (
     {"x": 1, "y": 1, "z": 0},
     {"x": 1, "y": -1, "z": 0},
@@ -49,7 +49,7 @@ NEIGHBOR_OFFSETS = (
 
 
 class ApiError(RuntimeError):
-    """Erreur HTTP transformee en exception Python lisible."""
+    """HTTP error converted to readable Python exception."""
 
     def __init__(self, status: int, method: str, path: str, payload: Any):
         self.status = status
@@ -63,7 +63,7 @@ class ApiError(RuntimeError):
 
 
 class NeumannClient:
-    """Petit client HTTP sans dependance externe."""
+    """Lightweight HTTP client with no external dependencies."""
 
     def __init__(self, base_url: str, token: str, timeout: int = 30):
         self.base_url = base_url.rstrip("/")
@@ -103,7 +103,7 @@ class NeumannClient:
                 payload = raw
             raise ApiError(exc.code, method, path, payload) from exc
         except URLError as exc:
-            raise RuntimeError(f"Impossible de joindre {url}: {exc}") from exc
+            raise RuntimeError(f"Unable to reach {url}: {exc}") from exc
 
 
 def log(message: str) -> None:
@@ -112,7 +112,7 @@ def log(message: str) -> None:
 
 
 def sleep_countdown(seconds: float, reason: str, step: int = POLL_SECONDS) -> None:
-    """Attend en rafraichissant une seule ligne de compte a rebours."""
+    """Wait while refreshing a single countdown line."""
 
     remaining = max(0, int(seconds))
     if remaining <= 0:
@@ -120,7 +120,7 @@ def sleep_countdown(seconds: float, reason: str, step: int = POLL_SECONDS) -> No
 
     while remaining > 0:
         minutes, secs = divmod(remaining, 60)
-        print(f"\r{reason}: reprise dans {minutes:02d}:{secs:02d}", end="", flush=True)
+        print(f"\r{reason}: resuming in {minutes:02d}:{secs:02d}", end="", flush=True)
         delay = min(step, remaining)
         time.sleep(delay)
         remaining -= delay
@@ -144,7 +144,7 @@ def seconds_until(value: str | None) -> int:
 def load_token(path: Path) -> str:
     token = path.read_text(encoding="utf-8").strip()
     if not token:
-        raise SystemExit(f"Le fichier {path} est vide.")
+        raise SystemExit(f"File {path} is empty.")
     return token
 
 
@@ -195,12 +195,11 @@ def busy_mannies(mannies: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def value_mentions_resource(value: Any, resource: str) -> bool:
-    """Reconnaissance permissive des ressources sur les objets de secteur.
+    """Permissive resource recognition on sector objects.
 
-    Le YAML documente le minage mais ne fige pas le format exact de la
-    composition des asteroides. Cette fonction accepte les formes courantes:
-    {"resources": {"metals": 0.2}}, {"composition": [...]}, champs directs,
-    ou un resume textuel.
+    The YAML documents mining but does not fix the exact format of asteroid
+    composition. This function accepts common forms: {"resources": {"metals": 0.2}},
+    {"composition": [...]}, direct fields, or text summaries.
     """
 
     if value is None:
@@ -243,7 +242,7 @@ def asteroid_has_resource(asteroid: dict[str, Any], resource: str) -> bool:
 
 
 def iter_sector_asteroids(sector: dict[str, Any]) -> list[dict[str, Any]]:
-    """Retourne les asteroides visibles, y compris ceux imbriques dans un systeme."""
+    """Returns visible asteroids, including those nested in a solar system."""
 
     asteroids = []
     seen_ids = set()
@@ -304,14 +303,14 @@ def wait_for_probe_idle(client: NeumannClient) -> dict[str, Any]:
         movement = probe.get("movement") or {}
         movement_status = movement.get("status")
         if status in {"idle", "orbiting"} and movement_status in {None, "arrived", "failed"}:
-            log("Sonde disponible dans le secteur courant.")
+            log("Probe available in current sector.")
             return probe
 
         remaining = int(movement.get("secondsRemaining") or seconds_until(movement.get("arrivalAt")) or POLL_SECONDS)
         phase = movement.get("phase") or status
         target = movement.get("target")
-        log(f"Sonde en transit ({phase}) vers {target}.")
-        sleep_countdown(max(POLL_SECONDS, remaining), "Transit en cours")
+        log(f"Probe in transit ({phase}) to {target}.")
+        sleep_countdown(max(POLL_SECONDS, remaining), "Transit in progress")
 
 
 def wait_for_manny_tasks(client: NeumannClient) -> None:
@@ -323,8 +322,8 @@ def wait_for_manny_tasks(client: NeumannClient) -> None:
 
         next_end = min((seconds_until(manny.get("taskEstimatedEndTime")) for manny in busy), default=POLL_SECONDS)
         descriptions = ", ".join(f"{m.get('name')}:{m.get('currentTask')}" for m in busy)
-        log(f"Taches en cours: {descriptions}.")
-        sleep_countdown(max(POLL_SECONDS, next_end), "Mannys au travail")
+        log(f"Tasks in progress: {descriptions}.")
+        sleep_countdown(max(POLL_SECONDS, next_end), "Mannys working")
 
 
 def distribute_amount(total: float, count: int, precision: int = 3) -> list[float]:
@@ -341,13 +340,13 @@ def start_repairs(client: NeumannClient, probe: dict[str, Any], mannies: list[di
     missing = max(0.0, 100.0 - integrity)
     available = idle_mannies(mannies)
     if missing <= 0.001:
-        log("Integrite a 100%, aucune reparation necessaire.")
+        log("Integrity at 100%, no repair needed.")
         return False
     if not available:
-        log(f"Integrite a {integrity:.1f}%, mais aucun Manny n'est disponible pour reparer.")
+        log(f"Integrity at {integrity:.1f}%, but no Manny available to repair.")
         return False
     if metals <= 0:
-        log(f"Integrite a {integrity:.1f}%, mais il n'y a pas de metaux pour reparer.")
+        log(f"Integrity at {integrity:.1f}%, but no metals to repair.")
         return False
 
     repairable = min(missing, metals / REPAIR_METALS_PER_PERCENT_ECE)
@@ -355,15 +354,15 @@ def start_repairs(client: NeumannClient, probe: dict[str, Any], mannies: list[di
         return False
 
     parts = distribute_amount(repairable, len(available))
-    log(f"Reparation: {repairable:.2f}% repartis sur {len(parts)} Manny(s).")
+    log(f"Repairs: {repairable:.2f}% distributed over {len(parts)} Manny(s).")
     started = False
     for manny, percent in zip(available, parts):
         try:
             client.post(f"/api/probe/mannies/{manny['id']}/repair", {"integrityPercent": percent})
-            log(f"  - {manny.get('name')} repare {percent:.2f}% d'integrite.")
+            log(f"  - {manny.get('name')} repairs {percent:.2f}% integrity.")
             started = True
         except ApiError as exc:
-            log(f"  - Reparation refusee pour {manny.get('name')}: {exc}")
+            log(f"  - Repair refused for {manny.get('name')}: {exc}")
     return started
 
 
@@ -375,26 +374,26 @@ def start_metal_mining(
 ) -> bool:
     metals = resource_stock_amount(inventory, "metals")
     if metals >= METAL_RESERVE_TARGET_ECE:
-        log(f"Reserve de metaux suffisante: {metals:.3f} ECE.")
+        log(f"Sufficient metal reserve: {metals:.3f} ECE.")
         return False
 
     targets = asteroids_with_resource(sector, "metals")
     available = idle_mannies(mannies)
     if not targets:
-        log("Reserve de metaux basse, mais aucun asteroide metallique visible ici.")
+        log("Metal reserve low, but no metallic asteroid visible here.")
         return False
     if not available:
-        log("Reserve de metaux basse, mais aucun Manny disponible pour miner.")
+        log("Metal reserve low, but no Manny available to mine.")
         return False
 
     target_amount = min(MANNY_TRIP_CAPACITY_ECE * len(available), METAL_RESERVE_TARGET_ECE - metals, free_capacity(inventory))
     if target_amount <= 0:
-        log("Reserve de metaux basse, mais la soute est pleine.")
+        log("Metal reserve low, but cargo hold is full.")
         return False
 
     parts = distribute_amount(target_amount, len(available))
     asteroid = targets[0]
-    log(f"Minage: {target_amount:.3f} ECE de metaux repartis sur {len(parts)} Manny(s).")
+    log(f"Mining: {target_amount:.3f} ECE of metals distributed over {len(parts)} Manny(s).")
     started = False
     for manny, amount in zip(available, parts):
         try:
@@ -402,10 +401,10 @@ def start_metal_mining(
                 f"/api/probe/mannies/{manny['id']}/mine",
                 {"objectId": asteroid["id"], "resources": ["metals"], "targetAmount": amount},
             )
-            log(f"  - {manny.get('name')} mine {amount:.3f} ECE de metaux sur {asteroid.get('name') or asteroid['id']}.")
+            log(f"  - {manny.get('name')} mines {amount:.3f} ECE of metals on {asteroid.get('name') or asteroid['id']}.")
             started = True
         except ApiError as exc:
-            log(f"  - Minage refuse pour {manny.get('name')}: {exc}")
+            log(f"  - Mining refused for {manny.get('name')}: {exc}")
     return started
 
 
@@ -414,10 +413,10 @@ def wait_for_scan_window(sector: dict[str, Any]) -> None:
     residence = int(scan.get("currentSectorResidenceSeconds", 0) or 0)
     missing = SCAN_DELAY_SECONDS - residence
     if missing > 0:
-        log(f"Capteurs voisins pas encore murs: {residence}s/{SCAN_DELAY_SECONDS}s dans ce secteur.")
-        sleep_countdown(missing, "Scan passif des secteurs voisins")
+        log(f"Neighbor sensors not yet mature: {residence}s/{SCAN_DELAY_SECONDS}s in this sector.")
+        sleep_countdown(missing, "Passive scan of neighboring sectors")
     else:
-        log("Le delai de scan passif est atteint.")
+        log("Passive scan delay reached.")
 
 
 def observe_neighbors(client: NeumannClient, current: dict[str, Any]) -> list[dict[str, Any]]:
@@ -428,11 +427,11 @@ def observe_neighbors(client: NeumannClient, current: dict[str, Any]) -> list[di
             sector = client.get("/api/sector", coords)["sector"]
             neighbors.append(sector)
             label = coords_label(coords)
-            danger = "trou noir possible" if has_black_hole(sector) else "pas de trou noir detecte"
-            astral = "avec astres" if has_astral_signal(sector) else "vide ou pauvre"
+            danger = "possible black hole" if has_black_hole(sector) else "no black hole detected"
+            astral = "with celestial bodies" if has_astral_signal(sector) else "empty or sparse"
             log(f"  - {label}: {sector.get('knowledgeLevel')} / {danger} / {astral}")
         except ApiError as exc:
-            log(f"  - {coords_label(coords)}: scan indisponible ({exc})")
+            log(f"  - {coords_label(coords)}: scan unavailable ({exc})")
     return neighbors
 
 
@@ -441,7 +440,7 @@ def coords_label(coords: dict[str, Any]) -> str:
 
 
 def visited_sector_keys(client: NeumannClient) -> set[tuple[int, int, int]]:
-    """Recupere la cartographie des secteurs deja traverses par la sonde."""
+    """Retrieve the map of sectors already visited by the probe."""
 
     visited_payload = client.get("/api/probe/visited-sectors")
     return {vector_key(item["relativeCoordinates"]) for item in visited_payload["visitedSectors"]}
@@ -451,9 +450,9 @@ def choose_destination(neighbors: list[dict[str, Any]], visited: set[tuple[int, 
     candidates = [sector for sector in neighbors if vector_key(sector["relativeCoordinates"]) not in visited]
     skipped_count = len(neighbors) - len(candidates)
     if skipped_count:
-        log(f"{skipped_count} secteur(s) voisin(s) deja visite(s) ignore(s).")
+        log(f"{skipped_count} neighboring sector(s) already visited, ignored.")
     if not candidates:
-        raise RuntimeError("Tous les secteurs voisins observes ont deja ete visites; aucun retour ne sera lance.")
+        raise RuntimeError("All observed neighboring sectors have been visited; no departure will be launched.")
 
     def score(sector: dict[str, Any]) -> tuple[int, int, float]:
         no_black_hole = 1 if not has_black_hole(sector) else 0
@@ -466,13 +465,13 @@ def choose_destination(neighbors: list[dict[str, Any]], visited: set[tuple[int, 
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Explore Neumann Probe jusqu'a trouver du deuterium.")
-    parser.add_argument("--base-url", default=BASE_URL, help="URL de base de l'API.")
-    parser.add_argument("--secret", default=SECRET_FILE, help="Fichier contenant la clef d'API.")
+    parser = argparse.ArgumentParser(description="Explore Neumann Probe to find deuterium.")
+    parser.add_argument("--base-url", default=BASE_URL, help="Base URL of the API.")
+    parser.add_argument("--secret", default=SECRET_FILE, help="File containing the API key.")
     args = parser.parse_args()
 
     client = NeumannClient(args.base_url, load_token(Path(args.secret)))
-    log("Bot demarre. Recherche d'un asteroide contenant du deuterium.")
+    log("Bot started. Searching for an asteroid containing deuterium.")
 
     while True:
         probe = wait_for_probe_idle(client)
@@ -482,25 +481,25 @@ def main() -> int:
         inventory = inventory_from_probe_or_sector(probe, sector_payload)
         fill = deuterium_fill_percent(inventory)
         if fill is not None:
-            log(f"Cuve de deuterium: {fill:.1f}%.")
+            log(f"Deuterium tank: {fill:.1f}%.")
 
         deuterium_asteroids = asteroids_with_resource(sector, "deuterium")
         if deuterium_asteroids:
             names = ", ".join(obj.get("name") or obj["id"] for obj in deuterium_asteroids)
-            log(f"Victoire: asteroide(s) avec deuterium dans le secteur courant: {names}.")
+            log(f"Victory: asteroid(s) with deuterium in current sector: {names}.")
             return 0
 
         mannies = client.get("/api/probe/mannies")["mannies"]
         metals = resource_stock_amount(inventory, "metals")
         log(
-            f"Secteur {coords_label(sector['relativeCoordinates'])}: "
-            f"{len(mannies)} Manny(s), {metals:.3f} ECE de metaux."
+            f"Sector {coords_label(sector['relativeCoordinates'])}: "
+            f"{len(mannies)} Manny(s), {metals:.3f} ECE of metals."
         )
 
         repair_started = start_repairs(client, probe, mannies, metals)
 
-        # On recharge l'etat des Mannys: ceux qui viennent de partir reparer ne
-        # doivent pas etre choisis pour miner dans la meme boucle.
+        # Reload Manny state: those that just left for repairs should not be
+        # chosen for mining in the same loop.
         mannies = client.get("/api/probe/mannies")["mannies"]
         mining_started = start_metal_mining(client, sector, inventory, mannies)
 
@@ -510,7 +509,7 @@ def main() -> int:
 
         wait_for_scan_window(sector)
         visited = visited_sector_keys(client)
-        log("Scan des secteurs voisins.")
+        log("Scanning neighboring sectors.")
         neighbors = observe_neighbors(client, sector["relativeCoordinates"])
         try:
             destination = choose_destination(neighbors, visited)
@@ -518,21 +517,21 @@ def main() -> int:
             log(str(exc))
             return 1
 
-        log(f"Depart vers {coords_label(destination)}.")
+        log(f"Departing to {coords_label(destination)}.")
         try:
             movement = client.post("/api/probe/move", {"target": destination})["movement"]
         except ApiError as exc:
-            log(f"Depart refuse: {exc}")
-            sleep_countdown(POLL_SECONDS, "Pause avant nouvelle tentative")
+            log(f"Departure refused: {exc}")
+            sleep_countdown(POLL_SECONDS, "Pause before retry")
             continue
 
         remaining = int(movement.get("secondsRemaining") or seconds_until(movement.get("arrivalAt")) or POLL_SECONDS)
-        sleep_countdown(remaining, "Transit en cours")
+        sleep_countdown(remaining, "Transit in progress")
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except KeyboardInterrupt:
-        print("\nInterruption utilisateur.")
+        print("\nUser interrupt.")
         raise SystemExit(130)
