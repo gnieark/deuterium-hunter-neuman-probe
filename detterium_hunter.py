@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""
 """Example bot for the API https://neumann-probe.net/.
 
 Objective: explore sectors until finding an asteroid containing deuterium.
