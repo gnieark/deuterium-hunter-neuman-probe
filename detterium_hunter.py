@@ -387,19 +387,26 @@ def start_metal_mining(
         log("Reserve de metaux basse, mais aucun Manny disponible pour miner.")
         return False
 
-    target_amount = min(MANNY_TRIP_CAPACITY_ECE, METAL_RESERVE_TARGET_ECE - metals, free_capacity(inventory))
+    target_amount = min(MANNY_TRIP_CAPACITY_ECE * len(available), METAL_RESERVE_TARGET_ECE - metals, free_capacity(inventory))
     if target_amount <= 0:
         log("Reserve de metaux basse, mais la soute est pleine.")
         return False
 
-    manny = available[0]
+    parts = distribute_amount(target_amount, len(available))
     asteroid = targets[0]
-    client.post(
-        f"/api/probe/mannies/{manny['id']}/mine",
-        {"objectId": asteroid["id"], "resources": ["metals"], "targetAmount": round(target_amount, 3)},
-    )
-    log(f"{manny.get('name')} mine {target_amount:.3f} ECE de metaux sur {asteroid.get('name') or asteroid['id']}.")
-    return True
+    log(f"Minage: {target_amount:.3f} ECE de metaux repartis sur {len(parts)} Manny(s).")
+    started = False
+    for manny, amount in zip(available, parts):
+        try:
+            client.post(
+                f"/api/probe/mannies/{manny['id']}/mine",
+                {"objectId": asteroid["id"], "resources": ["metals"], "targetAmount": amount},
+            )
+            log(f"  - {manny.get('name')} mine {amount:.3f} ECE de metaux sur {asteroid.get('name') or asteroid['id']}.")
+            started = True
+        except ApiError as exc:
+            log(f"  - Minage refuse pour {manny.get('name')}: {exc}")
+    return started
 
 
 def wait_for_scan_window(sector: dict[str, Any]) -> None:

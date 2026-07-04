@@ -1,15 +1,15 @@
-Une IA d'une sonde de Von Neumann perdue  dans le dédale de secteurs de l'espace craignait de voir ses réserves de deuterium s'épuiser. Elle s'est mise en veille et a automatisé ses actions.
+The AI ​​of a Von Neumann probe, lost in a maze of space sectors, feared running out of deuterium. It entered standby mode and automated its operations.
 
-Fais en boucle {
-* Saut dans un secteur voisin
-* Si présence de deutérium minable dans le secteur C'est gagné, arrète le batch et on se réveille, la vraie mission reprend!
-* Répare les dégats et refais le stock de métal si possible, en minant un astéroide.
-* Scanner les secteurs voisins 
+Loop {
+* Jump to a neighboring sector
+* If mineable deuterium is present in the sector: Success! Stop the script and wake up—the real mission resumes!
+* Repair damage and replenish metal stocks if possible by mining an asteroid.
+* Scan neighboring sectors
 
 }
 
-Ce script (deuterium_hunter.py) est un exemple d'automatisation avec l'API de https://neumann-probe.net/
+This script (deuterium_hunter.py) is an example of automation using the API from https://neumann-probe.net/
 
-Pour l'utiliser, récupérez votre clef d'API (click sur votre pseudo), insérez la dans le un fichier nommé .secret
+To use it, retrieve your API key (click on your username) and save it in a file named .secret
 
-Exécutez deuterium_hunter.py
+Run deuterium_hunter.py
