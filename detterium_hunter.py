@@ -14,6 +14,7 @@ import argparse
 import json
 import time
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -328,10 +329,21 @@ def wait_for_manny_tasks(client: NeumannClient) -> None:
 def distribute_amount(total: float, count: int, precision: int = 3) -> list[float]:
     if count <= 0 or total <= 0:
         return []
-    base = round(total / count, precision)
+
+    total_decimal = Decimal(str(total))
+    count_decimal = Decimal(count)
+    scale = max(precision, 6)
+    quantizer = Decimal(1).scaleb(-scale)
+
+    base = (total_decimal / count_decimal).quantize(quantizer, rounding=ROUND_HALF_UP)
     parts = [base for _ in range(count)]
-    parts[-1] = round(total - sum(parts[:-1]), precision)
-    return [part for part in parts if part > 0]
+    if parts:
+        parts[-1] = (total_decimal - sum(parts[:-1], Decimal("0"))).quantize(quantizer, rounding=ROUND_HALF_UP)
+
+    if not any(part > 0 for part in parts):
+        parts[0] = total_decimal.quantize(quantizer, rounding=ROUND_HALF_UP)
+
+    return [float(part) for part in parts if float(part) > 0]
 
 
 def start_repairs(client: NeumannClient, probe: dict[str, Any], mannies: list[dict[str, Any]], metals: float) -> bool:
@@ -356,6 +368,9 @@ def start_repairs(client: NeumannClient, probe: dict[str, Any], mannies: list[di
     log(f"Repairs: {repairable:.2f}% distributed over {len(parts)} Manny(s).")
     started = False
     for manny, percent in zip(available, parts):
+        if percent <= 0:
+            log(f"  - Skipping {manny.get('name')} because computed repair is too small ({percent:.6f}%).")
+            continue
         try:
             client.post(f"/api/probe/mannies/{manny['id']}/repair", {"integrityPercent": percent})
             log(f"  - {manny.get('name')} repairs {percent:.2f}% integrity.")
